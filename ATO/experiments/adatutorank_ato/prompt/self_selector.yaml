@@ -1,0 +1,7 @@
+# Current-policy self-selector prompt block.
+# It replaces the generic rubric section in the original ranking system prompt
+# while preserving the scenario, candidate documents, query, and output format.
+rubric_select_template: |-
+  Use the following query-specific rubrics to judge a candidate document set. They specify the concrete scoring points that the optimal document subset for this query should cover, and a higher weight indicates a more important point.
+
+  {rubric}

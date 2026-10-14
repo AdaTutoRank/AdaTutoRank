@@ -1,0 +1,22 @@
+# Teacher-only adaptive tutoring hints.
+# The placeholders are populated from the query rubric, self-reflection, or
+# current-policy sibling set. Literal braces must be escaped as {{ and }}.
+rubric_hint_template: |-
+  ### Rubrics
+  Below are the scoring dimensions and key points that the optimal document subset for this query should cover (three tiers / nine dimensions, scored 0-10; a higher weight means more important):
+  {rubric}
+  Strictly follow the rubrics above and select the optimal document subset.
+
+# Medium-reward rollouts receive {diff}; low-reward rollouts receive the
+# sibling-set example and its judge score through {rubric_set} and {reward}.
+diff_hint_template: |-
+  ### Corrective idea
+  Your current selection is not yet optimal. Below is a concrete corrective idea for revising it toward the optimal document subset:
+  {diff}
+  Apply the corrective idea above and select the optimal document subset.
+
+demonstration_hint_template: |-
+  ### Reference example
+  Below is an example optimal document subset for this query (scored {reward} out of 10 by the judge); use it as a concrete reference:
+  {rubric_set}
+  Learn from the reference example above and select the optimal document subset.

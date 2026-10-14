@@ -1,0 +1,15 @@
+api:
+  base_url: https://api.deepseek.com
+  model: deepseek-flash
+  timeout: 3600
+  max_retries: 3
+  max_tokens: 16384
+  thinking: false
+
+judge:
+  concurrency: 5
+  parse_retries: 3
+  rubric_field: hybrid_rubrics
+  docs_field: docs
+  selected_field: selected_docs
+  prompt_file: prompts/setwise_judge.yaml

@@ -1,0 +1,35 @@
+defaults:
+  - ppo_trainer
+  - user
+  - _self_
+
+# Covers the 16K rollout prompt plus adaptive tutoring context.
+max_model_len: 20128
+
+actor_rollout_ref:
+  actor:
+    ppo_mini_batch_size: 64
+    policy_loss:
+      # Internal verl loss implementation used by ATO.
+      loss_mode: sdpo
+    self_distillation:
+      max_reprompt_len: 10240
+      is_clip: 2.0
+    optim:
+      lr: 5e-6
+  rollout:
+    n: 8
+    calculate_log_probs: True
+
+algorithm:
+  adv_estimator: grpo
+  norm_adv_by_std_in_grpo: True
+  rollout_correction:
+    rollout_is: token
+    rollout_is_threshold: 2.0
+
+data:
+  train_batch_size: 64
+
+trainer:
+  val_before_train: True

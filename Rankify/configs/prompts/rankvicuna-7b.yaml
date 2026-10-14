@@ -1,0 +1,16 @@
+# RankVicuna (7B) — listwise ranking (RankGPT prompt), sliding window 20 / step 10
+#
+# Model output: "[4] > [2] > ...".
+# User message for one window =
+#   prefix_prompt + "\n" + "[1] <passage>\n" + "[2] <passage>\n" + ... + post_prompt
+# Placeholders: {query} question text, {num} passages in the window.
+# Passages go through ftfy.fix_text and are shortened until the prompt fits the context;
+# "[n]" inside passages and the query is rewritten to "(n)".
+# The message is rendered with the tokenizer's chat template, or FastChat's conversation
+# template for the model when the tokenizer has none (the case for RankVicuna).
+
+system_message: null
+
+prefix_prompt: "I will provide you with {num} passages, each indicated by a numerical identifier []. Rank the passages based on their relevance to the search query: {query}.\n"
+
+post_prompt: "Search Query: {query}.\nRank the {num} passages above based on their relevance to the search query. All the passages should be included and listed using identifiers, in descending order of relevance. The output format should be [] > [], e.g., [4] > [2], Only respond with the ranking results, do not say any word or explain."

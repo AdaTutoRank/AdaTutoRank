@@ -1,0 +1,34 @@
+# =============================================================================
+# Downstream generator (basic RAG) used to score every reranker
+#
+# The prompt is sent as a raw completion (no chat template), one query at a time.
+# Placeholders: {contexts} passages chosen by the reranker joined by "\n",
+#               {question} question text (Rankify appends "?" when missing).
+# Weights are resolved through the `generators` section of configs/weights.yaml.
+# =============================================================================
+
+model: meta-llama/Llama-3.1-8B-Instruct
+
+# Ranking rerankers pass their top_k passages; set-selection rerankers pass their whole selection.
+top_k: 5
+
+vllm:
+  dtype: float16
+  max_model_len: 8192
+  gpu_memory_utilization: 0.8
+
+sampling:
+  max_tokens: 20
+  temperature: 0
+  top_p: 0.9
+  repetition_penalty: 1.3
+  stop: ["\n", "(", "Note:", "Based on", "."]
+
+prompt: |-
+  Answer the question based on the given contexts. Output ONLY the exact answer — a single word, name, number, or short phrase (no more than 5 words). Do NOT add any explanation, reasoning, parenthetical notes, or extra punctuation. Do NOT start with "Based on" or "According to". If the answer is yes/no, output only "yes" or "no".
+
+  Contexts:
+  {contexts}
+
+  Question: {question}
+  Answer:

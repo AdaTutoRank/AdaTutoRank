@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rankify*"]
+
+[project]
+name = "rankify"
+version = "0.1.5"
+description = "Reranker-only Rankify release used to evaluate AdaTutoRank on BM25 top-50 RAG benchmarks"
+readme = "README.md"
+requires-python = ">=3.10"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[project.urls]
+"Paper" = "https://arxiv.org/abs/2609.32472"
+"Project Page" = "https://adatutorank.github.io/"
+"Model" = "https://huggingface.co/kailinjiang/AdaTutoRank-8B"

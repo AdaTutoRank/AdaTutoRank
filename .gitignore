@@ -1,0 +1,12 @@
+**/.git/
+**/.env
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+**/.cache/
+**/models/
+**/outputs/
+**/eval_output*/
+**/data/setwise_eval_kit/
+*.parquet
+.DS_Store

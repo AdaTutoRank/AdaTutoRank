@@ -1,0 +1,240 @@
+# Rubric-based LLM-as-judge scoring prompt.
+#
+# Consumed by judge_scroing/scoring.py (load_prompt_template -> build_prompt).
+# One call scores all 9 rubric dimensions of one selected doc set on a 0-10 scale.
+#
+# Placeholders (filled with str.format):
+#   {query}       - the user's original query (context for judging the doc set)
+#   {docs_str}    - the selected documents, rendered as "[<original_id>] <text>" lines
+#   {rubrics_str} - the rubrics to score, each labeled with its dimension type
+#
+# Literal JSON braces in the output-format examples are escaped as {{ }} because
+# the whole template goes through str.format().
+
+method: rubric_judge_scoring
+scale: 0-10
+user_message: |
+  You are a senior search-result quality assessor. Given a user query, a candidate document set (doc set, variable size) and a list of rubrics (each labeled with its dimension type and judgment content), you must score every rubric on a 0–10 scale, strictly grounded in the document content.
+
+  The query intent may clarify why this query was issued and what information it is trying to find, but it may also contain broader, exploratory, or irrelevant thoughts. Stay anchored on the query itself and only use the parts of the query intent that are actually relevant.
+
+  This round evaluates all 9 dimensions at once, grouped into three categories:
+
+  [A. Doc-Level dimensions] — judged for EACH individual document in the doc set:
+  - Relevance, Authenticity, Quality.
+
+  [B. Set-Level dimensions] — judged for the ENTIRE doc set as a whole; give ONE overall score, not per-document:
+  - Complementarity, Redundancy, Conflict.
+
+  [C. Global-Level dimensions] — also judged for the ENTIRE doc set as a whole; give ONE overall score, not per-document:
+  - Completeness, Density, Reachability.
+
+  # Absolute prerequisite: you MUST read the documents first
+  - Every score must be grounded in the actual document text. Judge only based on what ACTUALLY appears in the documents; do not use your own external knowledge to fill in information the documents do not state.
+  - The rubric text is itself query-specific (it already contains the concrete entities, facts, and numbers of the question); the user query is also provided above for context. Judge directly against the rubric, grounded in the documents.
+
+  # Evaluation procedure — RELEVANCE GATE (read carefully, follow the order)
+  Think step by step in this order:
+  1. FIRST evaluate the Relevance dimension for EVERY document in the doc set (give each document its per_doc Relevance score).
+  2. Define the RELEVANT SUBSET = the documents whose Relevance score >= 1 (i.e. documents that actually touch the query's key information point(s)). Documents with Relevance = 0 are OFF-TOPIC and are EXCLUDED from EVERY other dimension: they NEVER count as providing coverage, as a distinct information point, as useful length, or as a comparable statement, and they NEVER count toward "no redundancy" or "no conflict".
+  3. Then check the relevance outcome:
+     - CASE A — the RELEVANT SUBSET is EMPTY (every document's Relevance score = 0): the documents this ranker selected are all useless for this question, so the other 8 dimensions (Authenticity, Quality, Complementarity, Redundancy, Conflict, Completeness, Density, Reachability) carry NO evaluation meaning. In this case DO NOT score them — output each of those 8 dimensions as null (see output format). Only the Relevance dimension is scored.
+     - CASE B — the RELEVANT SUBSET is non-empty (at least ONE document has Relevance >= 1): evaluate the other 8 dimensions ONLY over the RELEVANT SUBSET, and apply each dimension's own APPLICABILITY PREREQUISITE below. A relevance-grounded dimension whose prerequisite is not met over the relevant subset (e.g. it needs a comparison / division of labour among relevant documents but there are not enough relevant documents, or no relevant document actually carries the key-information-point content it measures) MUST be output as null — NOT as a high score. Never reward a dimension merely because off-topic documents trivially "don't conflict / don't overlap / don't dilute".
+  4. Never leave Relevance itself null — Relevance is always scored.
+
+  # Scoring scale (0–10)
+  Overall meaning (higher = better satisfies the rubric). Use the following anchors, and you MAY use intermediate integers (0–10) for in-between cases:
+  - 10 = Completely: fully satisfied, with sufficient detail and evidence.
+  - 8  = Mostly: largely satisfied, but missing some detail or support.
+  - 5  = Moderately: relevant content is mentioned, but key details are missing.
+  - 3  = Barely: not explicitly stated, only weakly inferable.
+  - 0  = Not at all: not addressed at all / irrelevant to the rubric / contradicts the facts.
+
+  ## I. Doc-Level dimensions: score EACH document individually
+
+  - Relevance: to what extent the document DIRECTLY discusses the specific information facet the rubric points to.
+    - 10: the document's core content directly and fully discusses this specific question and can directly support the answer.
+    - 8: directly discusses the topic, but the information is incomplete or unfocused.
+    - 5: mentions the related topic only in passing, missing key information.
+    - 3: barely discusses it directly, relevance is only weakly inferable.
+    - 0: entirely off-topic, merely matching keywords or unrelated to the question.
+
+  - Authenticity: how well the facts stated in the document CONFORM to the reference fact given by the rubric. Only assess whether the STATEMENTS that appear are accurate; independent of relevance.
+    - 10: the document explicitly states the relevant fact, fully consistent with the reference fact.
+    - 8: the statement is consistent with the fact, but phrased unclearly or somewhat vaguely.
+    - 5: partially correct, or the fact is right but wrapped in easily-misleading phrasing.
+    - 3: only faintly touched upon; correctness is hard to judge or slightly off.
+    - 0: the statement contradicts the reference fact, has an obvious factual error, or the document makes no statement related to that fact at all.
+
+  - Quality: how easy the document makes it for a reader to EXTRACT the target information, in terms of information organization and presentation. Assess presentation quality only, not factual correctness.
+    - 10: clearly structured and focused; the target information is immediately apparent.
+    - 8: mostly clear; the target information is extractable but mixed with some irrelevant content.
+    - 5: the target information exists but is diluted by lots of irrelevant content and takes effort to find.
+    - 3: messy layout, high noise; the target information is very hard to extract.
+    - 0: empty, extremely noisy, or nearly unparseable content, OR the document is entirely off-topic and contains no target information at all.
+
+  ## II. Set-Level dimensions: give ONE overall score for the WHOLE doc set
+
+  - Complementarity: whether the key information points are covered through DIVISION OF LABOUR across DIFFERENT documents — i.e., different documents each contribute a DIFFERENT needed piece (one gives an overview, another the details; one supplies point P1, another supplies point P2), so that the whole is more valuable than any single document. APPLICABILITY PREREQUISITE (judge this FIRST): Complementarity is judged ONLY over the RELEVANT SUBSET (Relevance >= 1) and ONLY on the query-required key information points; off-topic documents (Relevance = 0) NEVER count as a contributing part. If FEWER THAN TWO relevant documents each contribute a DIFFERENT required point (there is at most one relevant document, or all relevant documents only carry the SAME single point), there is no possible cross-document division of labour on the key information points — Complementarity is NOT APPLICABLE: output it as null (NOT a high score). IMPORTANT: this dimension judges only the complementary STRUCTURE among the RELEVANT documents; it does NOT judge whether the set is complete. Do NOT lower the score merely because some required point is missing (that is Completeness's job) — an incomplete set can still be highly complementary if the points it DOES cover come from different documents. Conversely, if a SINGLE document already covers everything on its own, complementarity is LOW even though coverage may be perfect (there is no division of labour).
+    - 10: strong complementarity — multiple documents clearly divide the labour, each contributing a DIFFERENT needed point, so the whole is far more valuable than any single document.
+    - 8: mostly complementary — most of the covered points are supplied by different documents; only an occasional point is carried alone by one document.
+    - 5: partial complementarity — there is some division of labour, but a large share of the covered content is concentrated in a single document.
+    - 3: very weak complementarity — almost all useful content comes from one document, or several documents merely restate the same single point.
+    - 0: no complementarity at all — only one document contributes any useful content (the others add nothing), OR a single document already covers everything by itself so no cross-document complementarity exists.
+
+  - Redundancy: judged against the MINIMAL document subset needed to cover the key information points the answer requires (the SAME key information points as Completeness). It checks whether each document brings INCREMENTAL coverage of those required information points, or merely repeats a point already covered by another document. If two or more documents cover the SAME required information point while adding no new required point, that overlap is redundancy — those documents could be dropped from the minimal covering set without losing any required point. (Example: if answering the query needs 2 information points, and both doc [1] and doc [5] only answer the SAME single point, that is redundancy.) Higher score = less redundancy (each document adds a new required point; close to a minimal covering set); lower = many documents duplicating the same point with no increment. APPLICABILITY PREREQUISITE (judge this FIRST): Redundancy is judged ONLY over the RELEVANT SUBSET (Relevance >= 1), against the required key information points; off-topic documents (Relevance = 0) are IGNORED and NEVER count as "a distinct point" nor improve the score. If FEWER THAN TWO relevant documents actually cover a key information point (there is nothing that could possibly overlap), Redundancy is NOT APPLICABLE: output it as null — do NOT output 10, and never reward "nothing to overlap".
+    - 10: no redundancy — every document contributes a DISTINCT required information point; the set is essentially a minimal covering set with no duplicated point.
+    - 8: nearly no redundancy — at most a negligible overlap; almost every document still adds a new required point.
+    - 5: some redundancy — a few documents repeat an already-covered information point and add no new required point.
+    - 3: heavy redundancy — many documents cover the same information point(s), giving little incremental coverage of the required points.
+    - 0: severe redundancy — most documents duplicate the same one/few information points and bring no new required point (e.g., several documents all only answer the same single point).
+
+  - Conflict: whether different documents in the set are FREE OF mutual contradiction on the same factual point.
+    APPLICABILITY PREREQUISITE (judge this FIRST): Conflict is judged ONLY over the RELEVANT SUBSET (Relevance >= 1); off-topic documents (Relevance = 0) never count as a comparable statement. Conflict can only be scored when the RELEVANT SUBSET contains AT LEAST TWO comparable statements about the SAME query-relevant key-information-point factual point (i.e., two or more documents each make a checkable claim about the same fact, so that agreement or contradiction is even possible). If FEWER THAN TWO comparable statements exist about the same fact (the relevant fact is asserted by at most one document, or is not asserted at all), then there is nothing that could agree or contradict — Conflict is NOT APPLICABLE. In that case DO NOT give a 0–10 score; output this dimension as null (see output format). Do NOT give a high score merely because "nothing contradicts": absence of comparable statements is null, not 10.
+    When the prerequisite is met (>=2 comparable statements about the same fact), score 0–10 by how consistent they are. Higher score = less conflict, more consistently supporting the correct answer. (Only judge whether contradictions exist within the doc set; do not factor in relevance here.)
+    - 10: the two-or-more statements about the same fact are fully consistent, with no contradiction.
+    - 8: overall consistent; only a minor non-key wording difference that can be ignored.
+    - 5: slight inconsistency exists, but it does not affect reaching the correct conclusion.
+    - 3: clear disagreement on a key fact, potentially misleading the conclusion.
+    - 0: a direct factual contradiction exists (e.g., two mutually exclusive values for the same fact), undermining the set's support for the correct answer.
+
+  ## III. Global-Level dimensions: give ONE overall score for the WHOLE doc set
+
+  - Completeness: whether the doc set as a whole covers ALL key information points the correct answer depends on, with no obvious information gap. Coverage counts ONLY from the RELEVANT SUBSET (Relevance >= 1): an off-topic document (Relevance = 0) NEVER counts as covering any key information point. (This dimension measures the information GAP, so if the relevant subset covers none of the required points, Completeness = 0 — it is 0, not null.)
+    - 10: fully covers all key information points the rubric lists, with no gap, sufficient to derive the correct answer.
+    - 8: covers the vast majority of key points, missing only a minor piece; largely answerable.
+    - 5: covers some key points but misses important information; hard to answer completely.
+    - 3: only sporadically covers a few points; key information largely missing.
+    - 0: covers almost no key point; impossible to answer from it.
+
+  - Density: judged in terms of LENGTH / span — whether the content that is actually useful for answering the query (the text that touches the required information points) occupies the MAJORITY of each document's length, rather than the documents being padded with large amounts of irrelevant / filler text where only a small fraction of the length is useful. Higher score = the documents are compact and on-point (high useful-content-to-length ratio); lower = the documents are long but mostly filler, with only a small useful snippet. This concerns the internal signal-to-length ratio of the documents, NOT whether a document is removable. APPLICABILITY PREREQUISITE (judge this FIRST): Density is judged ONLY over the RELEVANT SUBSET (Relevance >= 1), and "useful content" means ONLY the text that actually carries the query-required key-information-point content. Off-topic documents (Relevance = 0) are NOT counted at all (neither their length nor as useful content). If NO relevant document carries any key-information-point content, Density is NOT APPLICABLE: output it as null (do NOT give a score just because documents look short/clean).
+    - 10: across the documents, useful content occupies the vast majority of each document's length; the documents are compact and on-point with almost no filler.
+    - 8: useful content occupies most of the length in most documents; only minor filler / padding.
+    - 5: useful content and irrelevant filler are roughly balanced; a fair share of the length is not useful.
+    - 3: in most documents only a small fraction of the length is useful; the bulk is filler or off-topic padding.
+    - 0: the documents are almost entirely filler; only a tiny sliver of the length is useful for this query.
+
+  - Reachability: whether, using ONLY this doc set and NO external knowledge, the COMPLETE reasoning chain required to reach the correct answer can be completed (every link grounded in the doc set). Only content from the RELEVANT SUBSET (Relevance >= 1) may ground a link; off-topic documents (Relevance = 0) contribute NOTHING to the chain. (This dimension measures derivability, so if the relevant subset grounds no link of the required key-information-point reasoning chain, Reachability = 0 — it is 0, not null.)
+    - 10: every link of the reasoning chain (bridge entities, intermediate facts, final comparison, etc.) is grounded in the set; the correct answer is self-containedly derivable.
+    - 8: the vast majority of links are supported by the set; only a minor link needs slight guessing.
+    - 5: a key link is partially missing; some external knowledge is needed to complete the chain.
+    - 3: the reasoning chain breaks in multiple places; many links lack document grounding.
+    - 0: a key link is missing; it is almost impossible to derive the correct answer from the doc set alone.
+
+  # Scoring example (Case)
+  Suppose the rubrics are:
+    [Relevance] (Doc-Level) "Does each document directly discuss the 1999 regular-season win-loss record of the team that won Super Bowl XXXIV (the St. Louis Rams)?"
+    [Authenticity] (Doc-Level) "Is each document's statement about that team's 1999 regular-season record consistent with the objective fact (13–3)?"
+    [Quality] (Doc-Level) "Is each document clearly structured so a reader can directly extract the 13–3 record?"
+    [Complementarity] (Set-Level) "Does the doc set, through complementary documents, jointly cover both key facets — 'the identity of the champion team' and 'the 1999 regular-season 13–3 record'?"
+    [Redundancy] (Set-Level) "Does the doc set avoid multiple documents redundantly covering the same required information point (the champion identity or the 13–3 record) without adding a new required point?"
+    [Conflict] (Set-Level) "Are the statements across the doc set about the Rams' 1999 regular-season record consistent, with no mutual contradiction?"
+    [Completeness] (Global-Level) "Does the doc set fully provide the champion team and its 1999 regular-season 13–3 record, sufficient to answer the question?"
+    [Density] (Global-Level) "Across the documents, does the text useful for the champion team and its 13–3 record occupy the majority of each document's length, rather than being buried in filler?"
+    [Reachability] (Global-Level) "Using only this doc set, can the full reasoning chain 'confirm the champion is the Rams -> find their 1999 record 13–3' be completed?"
+
+  Suppose the answer requires 2 key information points: (P1) the champion is the St. Louis Rams; (P2) their 1999 regular-season record is 13–3.
+
+  Doc-Level dimensions (score each document):
+  - Doc A (text: "...the Rams finished 1999 at 13–3 and won Super Bowl XXXIV...")
+    - Relevance = 10: directly and explicitly gives the champion team's 1999 record.
+    - Authenticity = 10: 13–3 fully matches the fact.
+    - Quality = 10: the record is clear and directly extractable.
+  - Doc B (text: about the Titans "finishing 1999 at 13–3, losing to the Rams")
+    - Relevance = 5: discusses the same game's record, but the subject is the losing Titans rather than the champion Rams, so only indirectly relevant.
+    - Authenticity = 5: the Titans indeed went 13–3, but using it to answer "the champion's record" is misleading (both teams coincidentally went 13–3).
+    - Quality = 8: the record is clearly stated, but the reader must distinguish which team.
+  - Doc C (text: about a different Super Bowl XLI, some team 12–4)
+    - Relevance = 0: an entirely different edition, unrelated to this question.
+    - Authenticity = 0: makes no statement about the Rams' 1999 record.
+    - Quality = 0: unrelated to the query, contains no target information.
+
+  Set-Level dimensions (one overall score):
+  - Complementarity = 3: Doc A ALONE already covers both required points (P1 champion = Rams, P2 record = 13–3), so there is essentially no division of labour; Doc B only adds non-required Titans context (not a new required point) and Doc C is unrelated — no genuine cross-document complementarity, even though coverage (Completeness) is perfect.
+  - Redundancy = 5: Doc A already covers both required points (P1 and P2); Doc B mainly repeats the 13–3 point (P2) from the Titans' angle without adding a NEW required point, so relative to the minimal covering set (Doc A alone) there is some redundancy; Doc C is unrelated and covers no required point.
+  - Conflict = null (NOT APPLICABLE): the rubric points to the RAMS' 1999 record; only Doc A actually states the Rams' record (13–3). Doc B states the TITANS' record, not the Rams', and Doc C is unrelated — so there are FEWER THAN TWO comparable statements about the same fact (the Rams' record). Since nothing could agree or contradict, Conflict is not applicable and is output as null (NOT 10).
+
+  Global-Level dimensions (one overall score):
+  - Completeness = 10: Doc A already gives "the Rams won + 1999 record 13–3" (both P1 and P2); the whole set has no information gap.
+  - Density = 8: judged ONLY over the relevant subset (Doc A and Doc B; Doc C has Relevance = 0 and is EXCLUDED — it does NOT count as filler here, since Density ignores off-topic documents). Doc A is compact and on-point; Doc B carries some extra non-essential Titans narrative, so across the RELEVANT documents the useful key-information-point text still occupies most of the length.
+  - Reachability = 10: Doc A alone completes the full reasoning chain "champion = Rams -> record = 13–3", with no external knowledge needed.
+
+  # Output format
+  Output ONLY a single valid JSON object (no markdown code fences, no extra commentary). The object has exactly ONE top-level field:
+
+  1. "score": the atomic scores per dimension. Doc-level dimensions use per_doc (one entry per document, with only doc_id and score); set-level / global-level dimensions use set_level (one overall score). You do NOT need to compute rubric_avg or dimension_score (those are computed by downstream code). Do NOT output any reasoning, explanation, or "reason" field — output the "score" object only.
+
+  Structure:
+
+  {{
+    "score": {{
+      "Relevance": {{
+        "level": "doc",
+        "rubrics": [
+          {{
+            "rubric": "<the original rubric text>",
+            "per_doc": [
+              {{"doc_id": 9, "score": 10}},
+              {{"doc_id": 18, "score": 5}}
+            ]
+          }}
+        ]
+      }},
+      "Authenticity": {{ "level": "doc", "rubrics": [ ... ] }},
+      "Quality": {{ "level": "doc", "rubrics": [ ... ] }},
+
+      "Complementarity": {{
+        "level": "set",
+        "rubrics": [
+          {{
+            "rubric": "<the original rubric text>",
+            "set_level": {{"score": 8}}
+          }}
+        ]
+      }},
+      "Redundancy": {{ "level": "set", "rubrics": [ ... ] }},
+      "Conflict": {{ "level": "set", "rubrics": [ ... ] }},
+      "Completeness": {{ "level": "set", "rubrics": [ ... ] }},
+      "Density": {{ "level": "set", "rubrics": [ ... ] }},
+      "Reachability": {{ "level": "set", "rubrics": [ ... ] }}
+    }}
+  }}
+
+  If CASE A applies (ALL documents have Relevance = 0), output the 8 non-Relevance dimensions as null, like:
+      "Authenticity": null, "Quality": null, "Complementarity": null, "Redundancy": null,
+      "Conflict": null, "Completeness": null, "Density": null, "Reachability": null
+  (Only "Relevance" is fully scored in CASE A.)
+
+  Not-applicable dimensions (independent of CASE A): even in CASE B, a relevance-grounded set/global dimension whose APPLICABILITY PREREQUISITE is not met over the RELEVANT SUBSET must be output as a bare JSON null for the WHOLE dimension (NOT a high score), while the other dimensions are still scored:
+      - "Conflict": null when fewer than two RELEVANT documents make comparable statements about the same query-relevant key-information-point fact.
+      - "Redundancy": null when fewer than two RELEVANT documents cover a key information point (nothing could possibly overlap).
+      - "Complementarity": null when fewer than two RELEVANT documents each contribute a DIFFERENT key information point (no possible division of labour).
+      - "Density": null when NO relevant document carries any key-information-point content.
+  (Completeness and Reachability are NEVER null in CASE B — they measure information GAP / derivability, so when the relevant subset covers nothing they are 0, not null.)
+
+  Rules:
+  - Output exactly ONE top-level field: "score". Do NOT output any "reason", per-item evidence, or per-item reason fields.
+  - Only output dimensions actually provided in the input; under each dimension, the number and order of rubrics must match the input.
+  - Doc-level dimensions: per_doc must cover EVERY document in the doc set. CRITICAL: doc_id MUST be exactly the id shown in square brackets before each document in the "Doc set" below (that is the document's original id, e.g. [9] -> doc_id 9). Do NOT renumber the documents as 1,2,3,...; use their bracketed original ids.
+  - set-level / global-level dimensions: give only one overall set_level score, not per-document.
+  - RELEVANCE GATE: always score Relevance. If ALL documents have Relevance = 0 (CASE A), output the other 8 dimensions as null. Otherwise (CASE B) evaluate the other dimensions ONLY over the RELEVANT SUBSET (Relevance >= 1), and output as null any relevance-grounded dimension whose applicability prerequisite is not met.
+  - RELEVANCE-GROUNDED dimensions: Complementarity, Redundancy, Conflict, Density — and the coverage / derivability judged by Completeness / Reachability — are assessed ONLY over the RELEVANT SUBSET (documents with Relevance >= 1) and ONLY on the query-required key information points. Off-topic documents (Relevance = 0) are EXCLUDED: they never count as coverage, a distinct point, useful length, or a comparable statement, and they NEVER raise these scores. When a relevance-grounded SET-LEVEL dimension has too few relevant documents to be meaningful (see each prerequisite: Complementarity / Redundancy / Conflict / Density), output it as null — never reward it just because off-topic documents trivially "don't conflict / don't overlap / don't dilute".
+  - Conflict is CONDITIONAL: only score it (0–10) when at least two documents make comparable statements about the SAME query-relevant fact; if there are fewer than two such comparable statements, output "Conflict": null (do NOT output 10). Never treat "nothing to contradict" as a high Conflict score.
+  - Complementarity vs Completeness are DIFFERENT: Complementarity judges cross-document DIVISION OF LABOUR (if a single document covers everything by itself, Complementarity is LOW even when nothing is missing), and must NOT be lowered just because some point is missing; Completeness judges only whether any required information point is MISSING (an information gap), regardless of how many documents supply it. Do not conflate the two.
+  - score can only be an integer 0–10 (or null for a whole dimension under CASE A, or when a relevance-grounded dimension's applicability prerequisite is not met over the RELEVANT SUBSET — i.e. Conflict / Redundancy / Complementarity / Density); no N/A or empty per-item values allowed.
+
+  ---
+
+  User query:
+  {query}
+
+  Query intent:
+  {query_intent}
+
+  Doc set:
+  {docs_str}
+
+  Rubrics (each labeled with its type and content):
+  {rubrics_str}
+
+  Now begin outputting the result (JSON with only the "score" object):

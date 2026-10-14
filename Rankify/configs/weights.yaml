@@ -1,0 +1,89 @@
+# =============================================================================
+# Model weights
+#
+# All models live in one folder, `model_dir`, one sub-folder per model:
+#
+#   models/
+#   ├── AdaTutoRank-8B/
+#   ├── bge-reranker-large/
+#   ├── ...
+#   └── Llama-3.1-8B-Instruct/
+#
+# model_dir: relative paths are taken from the repo root; the env var
+#            RANKIFY_MODEL_DIR overrides it.
+#
+# Every entry:
+#   repo_id:    HuggingFace repo name
+#   local_path: folder of this model. A relative name is placed under model_dir, an
+#               absolute path is used as is (e.g. weights you already have elsewhere).
+#               Empty -> <model_dir>/<last part of repo_id>.
+#               If the folder holds the weights they are loaded directly; otherwise the
+#               repo is downloaded into exactly this folder.
+#   hub:        optional, "huggingface" (default) or "modelscope" for models that are
+#               only published on ModelScope (repo_id is then the ModelScope id).
+#               A failed HuggingFace download is retried on ModelScope.
+#
+# Keys under `rerankers` must match the names in configs/rerankers.yaml.
+# =============================================================================
+
+model_dir: models
+
+rerankers:
+  bge-reranker-large:
+    repo_id: BAAI/bge-reranker-large
+    local_path: bge-reranker-large
+
+  monot5-3b:
+    repo_id: castorini/monot5-3b-msmarco-10k
+    local_path: monot5-3b-msmarco-10k
+
+  rankt5-3b:
+    repo_id: Soyoung97/RankT5-3b
+    local_path: RankT5-3b
+
+  rankllama-7b:
+    repo_id: castorini/rankllama-v1-7b-lora-passage      # LoRA adapter
+    local_path: rankllama-v1-7b-lora-passage
+    base_model:                                           # model the adapter is merged into
+      repo_id: meta-llama/Llama-2-7b-hf
+      local_path: Llama-2-7b-hf
+
+  rankvicuna-7b:
+    repo_id: castorini/rank_vicuna_7b_v1
+    local_path: rank_vicuna_7b_v1
+
+  rankzephyr-7b:
+    repo_id: castorini/rank_zephyr_7b_v1_full
+    local_path: rank_zephyr_7b_v1_full
+
+  rearank-7b:
+    repo_id: le723z/Rearank-7B
+    local_path: Rearank-7B
+
+  reasonrank-7b:
+    repo_id: liuwenhan/reasonrank-7B
+    local_path: reasonrank-7B
+
+  rank4gen-8b:
+    repo_id: JohnnyFan/Rank4Gen-DPO-Qwen3-8B             # https://modelscope.cn/models/JohnnyFan/Rank4Gen-DPO-Qwen3-8B
+    hub: modelscope
+    local_path: Rank4Gen-DPO-Qwen3-8B
+
+  setr-8b:
+    repo_id: JohnnyFan/SETR-Qwen3-8B                     # https://modelscope.cn/models/JohnnyFan/SETR-Qwen3-8B
+    hub: modelscope
+    local_path: SETR-Qwen3-8B
+
+  rubricranker-8b:
+    repo_id: lwhlwh/rubricranker_sft_rl
+    hub: modelscope
+    local_path: rubricranker_sft_rl
+
+  adatutorank-8b:
+    repo_id: kailinjiang/AdaTutoRank-8B
+    local_path: AdaTutoRank-8B
+
+generators:
+  meta-llama/Llama-3.1-8B-Instruct:
+    repo_id: meta-llama/Llama-3.1-8B-Instruct
+    local_path: Llama-3.1-8B-Instruct

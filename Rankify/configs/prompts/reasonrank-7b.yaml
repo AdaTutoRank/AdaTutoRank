@@ -1,0 +1,26 @@
+# ReasonRank (7B) — reasoning-enhanced listwise ranking with a sliding window
+#
+# prompt_mode selects the system message, post prompt and decoding:
+#   reasoning  "<think> ... </think> <answer> [2] > [1] ... </answer>", greedy (used in the paper table)
+#   standard   RankGPT-style "[2] > [1] ...", greedy, fixed output length
+#   qwen3      ranked list inside <answer>, sampled with temperature 0.6
+#
+# User message for one window =
+#   prefix_prompt + "\n" + "[1] <passage>\n" + "[2] <passage>\n" + ... + post_prompts[prompt_mode]
+# Placeholders: {num} passages in the window, {query} question text.
+# Passages go through ftfy.fix_text, are truncated to max_passage_length tokens,
+# and "[n]" inside the text (and the query) is rewritten to "(n)".
+
+prompt_mode: reasoning
+
+system_messages:
+  reasoning: "You are RankLLM, an intelligent assistant that can rank passages based on their relevance to the query. Given a query and a passage list, you first thinks about the reasoning process in the mind and then provides the answer (i.e., the reranked passage list). The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>."
+  standard: "You are RankLLM, an intelligent assistant that can rank passages based on their relevance to the query."
+  qwen3: "You are RankLLM, an intelligent assistant that can rank passages based on their relevance to the query."
+
+prefix_prompt: "I will provide you with {num} passages, each indicated by a numerical identifier []. Rank the passages based on their relevance to the search query: {query}.\n"
+
+post_prompts:
+  reasoning: "Search Query: {query}.\nRank the {num} passages above based on their relevance to the search query. All the passages should be included and listed using identifiers, in descending order of relevance. The format of the answer should be [] > [], e.g., [2] > [1]."
+  standard: "Search Query: {query}.\nRank the {num} passages above based on their relevance to the search query. All the passages should be included and listed using identifiers, in descending order of relevance. The output format should be [] > [], e.g., [2] > [1]. Only respond with the ranking results, do not say any word or explain."
+  qwen3: "Search Query: {query}.\nRank the {num} passages above based on their relevance to the search query. All the passages should be included and listed using identifiers, in descending order of relevance. The final ranked list should be enclosed within <answer> </answer> tags, i.e., <answer> ranked list here </answer>. The format of ranked list should be [] > [], e.g., [2] > [1]. Only respond with the ranking results, do not say any word or explain."

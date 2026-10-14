@@ -1,0 +1,10 @@
+# MonoT5 (3B) — pointwise relevance classification
+#
+# Each (query, passage) pair is scored independently:
+#   score = log_softmax(logits[token_false, token_true])[token_true]
+# on the first decoded token. Input is truncated to context_size tokens.
+# Placeholders: {query} question text, {text} passage text.
+
+input_template: "Query: {query} Document: {text} Relevant:"
+token_false: "▁false"
+token_true: "▁true"

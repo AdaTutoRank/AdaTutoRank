@@ -1,0 +1,29 @@
+# Rearank (7B) — reasoning listwise reranking agent with a sliding window
+#
+# Model output: "<think> ... </think> <answer> [3] > [1] > ... </answer>".
+# One window is a multi-turn conversation:
+#   system:    system_message
+#   user:      instruction
+#   assistant: instruction_reply
+#   for each passage i:  user: passage_message / assistant: passage_reply
+#   user:      final_message
+# Placeholders: {query} the query string built from query_template, {num} passages in the window,
+#               {rank} passage id, {content} passage text.
+# Passages are whitespace-normalised and cut to max_passage_length characters.
+#
+# query_template: {question} is the question text. The "Question: " prefix matches how the
+# results in the paper table were produced (Rankify passed its Question object, whose str() adds it).
+
+query_template: "Question: {question}"
+
+system_message: "You are DeepRerank, an intelligent assistant that can rank passages based on their relevancy to the search query. You first thinks about the reasoning process in the mind and then provides the user with the answer."
+
+instruction: "I will provide you with passages, each indicated by number identifier []. Rank the passages based on their relevance to the search query.Search Query: {query}. \nRank the {num} passages above based on their relevance to the search query.The passages should be listed in descending order using identifiers. The most relevant passages should be listed first. The output format should be <answer> [] > [] </answer>, e.g., <answer> [1] > [2] </answer>."
+
+instruction_reply: "Okay, please provide the passages."
+
+passage_message: "[{rank}] {content}"
+
+passage_reply: "Received passage [{rank}]."
+
+final_message: "Please rank these passages according to their relevance to the search query: \"{query}\"\nFollow these steps exactly:\n1. First, within <think> tags, analyze EACH passage individually:\n- Evaluate how well it addresses the query\n- Note specific relevant information or keywords\n\n2. Then, within <answer> tags, provide ONLY the final ranking in descending order of relevance using the format: [X] > [Y] > [Z]"

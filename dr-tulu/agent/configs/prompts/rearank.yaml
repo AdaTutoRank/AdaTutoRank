@@ -1,0 +1,40 @@
+# Prompt template for Rearank (le723z/Rearank-7B), a reasoning-enhanced
+# listwise reranker used with a sliding window.
+#
+# Unlike the other listwise rerankers, Rearank does not put the candidates
+# in a single user turn: it hands them over one per turn, each acknowledged
+# by a synthetic assistant reply, and only then asks for the ranking. The
+# turn sequence assembled from the keys below is:
+#
+#   system    -> system_message
+#   user      -> instruction
+#   assistant -> instruction_ack
+#   user      -> passage        (repeated, once per candidate)
+#   assistant -> passage_ack    (repeated, once per candidate)
+#   user      -> final_request
+#
+# The model answers with <think>...</think> followed by
+# <answer> [1] > [2] </answer>.
+#
+# WARNING -- kept byte-identical to the reference implementation
+# (Rankify_only_ranker/rankify/models/rearank_reranker.py). Two quirks are
+# intentional and must not be "fixed": ``search query.Search Query:`` and
+# ``search query.The passages`` are missing a space, and the first line of
+# ``instruction`` ends with a space before the newline. ``instruction`` is
+# therefore written as a double-quoted scalar with an explicit \n so the
+# trailing space cannot be stripped by an editor.
+
+method: "listwise_rearank"
+system_message: "You are DeepRerank, an intelligent assistant that can rank passages based on their relevancy to the search query. You first thinks about the reasoning process in the mind and then provides the user with the answer."
+instruction: "I will provide you with passages, each indicated by number identifier []. Rank the passages based on their relevance to the search query.Search Query: {query}. \nRank the {num} passages above based on their relevance to the search query.The passages should be listed in descending order using identifiers. The most relevant passages should be listed first. The output format should be <answer> [] > [] </answer>, e.g., <answer> [1] > [2] </answer>."
+instruction_ack: "Okay, please provide the passages."
+passage: "[{rank}] {candidate}"
+passage_ack: "Received passage [{rank}]."
+final_request: |-
+  Please rank these passages according to their relevance to the search query: "{query}"
+  Follow these steps exactly:
+  1. First, within <think> tags, analyze EACH passage individually:
+  - Evaluate how well it addresses the query
+  - Note specific relevant information or keywords
+
+  2. Then, within <answer> tags, provide ONLY the final ranking in descending order of relevance using the format: [X] > [Y] > [Z]

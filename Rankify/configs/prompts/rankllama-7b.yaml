@@ -1,0 +1,8 @@
+# RankLLaMA (7B) — pointwise scoring with a LoRA-tuned Llama-2-7B sequence classifier
+#
+# The tokenizer receives (query_template, passage_template) as a text pair, truncated to max_length.
+# Placeholders: {query} question text, {text} passage text,
+#               {title} "<title> " when the passage has a title, otherwise "".
+
+query_template: "query: {query}"
+passage_template: "document: {title}{text}"

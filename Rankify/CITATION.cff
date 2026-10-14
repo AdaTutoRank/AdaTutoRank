@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+date-released: 2025-02
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Abdallah"
+  given-names: "Abdelrahman"
+- family-names: "Mozafari"
+  given-names: "Jamshid"
+- family-names: "Piryani"
+  given-names: "Bhawna"
+- family-names: "Ali"
+  given-names: "Mohammed"
+- family-names: "Jatowt"
+  given-names: "Adam"
+title: "Rankify: A Comprehensive Python Toolkit for Retrieval, Re-Ranking, and Retrieval-Augmented Generation"
+url: "https://arxiv.org/abs/2502.02464"
+preferred-citation:
+  type: article
+  authors:
+    - family-names: "Abdallah"
+      given-names: "Abdelrahman"
+    - family-names: "Mozafari"
+      given-names: "Jamshid"
+    - family-names: "Piryani"
+      given-names: "Bhawna"
+    - family-names: "Ali"
+      given-names: "Mohammed"
+    - family-names: "Jatowt"
+      given-names: "Adam"
+  title: "Rankify: A Comprehensive Python Toolkit for Retrieval, Re-Ranking, and Retrieval-Augmented Generation"
+  journal: "CoRR"
+  volume: "abs/2502.02464"
+  year: 2025
+  url: "https://arxiv.org/abs/2502.02464"
+  eprinttype: "arXiv"
+  eprint: "2502.02464"

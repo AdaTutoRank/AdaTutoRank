@@ -1,0 +1,92 @@
+tool_parser: "v20250824"
+
+# Model names below are defaults for running the workflow directly;
+# inference.sh replaces them with the local folders from configs/models.yaml.
+#
+# Client config for the SearchAgent (SFT model)
+search_agent_base_url: "http://localhost:30001/v1"
+search_agent_model_name: "rl-research/DR-Tulu-8B"
+search_agent_tokenizer_name: "Qwen/Qwen3-8B"
+search_agent_api_key: "dummy-key"
+search_agent_max_tokens: 32000
+search_agent_temperature: 1.0
+search_agent_max_tool_calls: 10
+
+# Client config for the browse/reader agent (general model)
+use_browse_agent: false
+browse_agent_base_url: "http://localhost:30002/v1"
+browse_agent_model_name: "Qwen/Qwen3-8B"
+browse_agent_tokenizer_name: "Qwen/Qwen3-8B"
+browse_agent_api_key: "dummy-key"
+browse_agent_max_tokens: 32000
+browse_agent_temperature: 0.3
+
+# Search tool configuration
+# number_documents_to_search: how many candidates to fetch from the search API
+# (always applies, regardless of reranker).
+number_documents_to_search: 30
+# return_topn: how many docs to finally return to the agent (always applies,
+# except for setwise rerankers Rank4Gen/SETR which return whatever they pick).
+return_topn: 5
+search_timeout: 1800
+
+# Browse tool configuration
+browse_tool_name: "jina"
+browse_timeout: 1800
+browse_max_pages_to_fetch: 10
+browse_context_char_length: 6000
+
+# Reranker configuration
+use_reranker: false
+# Supported types:
+#   identity (no-op control: keeps search order, same browse pipeline)
+#   pointwise_bge | pointwise_monot5 | pointwise_rankt5 | pointwise_rankllama
+#   listwise_rankvicuna | listwise_rankzephyr
+#   listwise_rearank | listwise_reasonrank
+#   setwise_rank4gen | setwise_setr | setwise_rubricranker | setwise_adatutorank
+#   listwise_singlepass
+#   pointwise / listwise (legacy aliases for bge / generic-vllm-listwise)
+reranker_type: "pointwise_bge"
+reranker_model_name: "BAAI/bge-reranker-large"
+reranker_api_url: "http://localhost:30003/v1"
+# Tokenizer of the served reranker (BGE / RankVicuna / RankZephyr); null: reranker_model_name.
+reranker_tokenizer_path: null
+reranker_doc_max_words: 100
+reranker_browse_max_pages: 50
+reranker_browse_timeout: 600
+reranker_timeout: 600
+reranker_listwise_max_tokens: 1024
+reranker_skip_browse: false
+reranker_append_page_content_to_snippet: true
+
+# HF backend (monoT5 / RankT5 / RankLLaMA) only.
+reranker_hf_device: "cuda:0"
+reranker_hf_batch_size: 8
+reranker_hf_max_length: 512
+# RankLLaMA: local base model the LoRA adapter is merged into (null: hub id from the adapter).
+reranker_hf_base_model: null
+
+# Sliding-window rerankers (RankVicuna / RankZephyr / Rearank / ReasonRank).
+reranker_window_size: 20
+reranker_step: 10
+
+# Rank4Gen only.
+reranker_rank4gen_downstream_model: "default"
+reranker_rank4gen_downstream_desc: "default"
+
+# Rearank only. Candidates are budgeted in characters, not tokens.
+reranker_rearank_max_passage_chars: 400
+# Leave null: the released 7B checkpoint is Qwen2.5-based and its chat
+# template rejects enable_thinking.
+reranker_rearank_enable_thinking: null
+
+# ReasonRank only. Reasoning runs long, hence the much larger token budget.
+reranker_reasonrank_max_tokens: 3172
+reranker_reasonrank_doc_max_words: 100
+
+# Ada TutoRank only.
+reranker_adatutorank_doc_max_words: 300
+reranker_adatutorank_temperature: 0.0
+reranker_adatutorank_top_p: 0.8
+reranker_adatutorank_top_k: 20
+reranker_adatutorank_min_p: 0.0

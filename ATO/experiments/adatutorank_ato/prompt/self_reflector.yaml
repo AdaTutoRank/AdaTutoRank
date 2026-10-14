@@ -1,0 +1,28 @@
+# Current-policy self-reflector prompt.
+# It compares the rollout subset with the stronger sibling set and produces one
+# concise corrective paragraph. The prompt body and output contract are kept
+# unchanged from the training implementation.
+diff_prompt_template: |-
+  You are analyzing document choice for a query. You are given the query, its scoring rubrics, the candidate documents, an initial chosen subset, and a stronger reference subset chosen under explicit rubric guidance. Using these as evidence, write a short natural-language explanation of which documents should or should not be included to best answer the query.
+
+  # Query
+  {query}
+
+  # Scoring rubrics
+  The optimal document subset for this query should satisfy the following scoring points. A higher weight indicates a more important point.
+  {rubrics}
+
+  # Candidate documents
+  Each line is formatted as "[id] text". Always refer to a document by its id.
+  {docs}
+
+  # Initial chosen document ids
+  {student_set}
+
+  # Reference chosen document ids
+  {rubric_set}
+
+  # Task
+  IMPORTANT: Ignore any earlier instruction about producing a ranked list of passage ids. That output format does NOT apply here. Your answer MUST be written as prose (full natural-language sentences), and you must NOT output a bare list of ids such as "[1] [2] [3]".
+
+  Write ONE concise paragraph of at most 100 words that, to best answer this query, explains which documents should be included (because they cover the key rubric points) and which should not be included (because they are off-topic, redundant, or low-value), giving a brief reason for each and referring to a document by its id only inline within a sentence (e.g., 'document [3] provides ...'). Explicitly discuss every id that appears in the "Initial chosen document ids" and the "Reference chosen document ids": for each initially chosen id say whether it should be kept or dropped and why, and for each reference id say whether it should be included and why. Write as direct guidance about the query itself, not as feedback to any student.

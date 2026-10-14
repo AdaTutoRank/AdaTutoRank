@@ -1,0 +1,137 @@
+# =============================================================================
+# Agents and rerankers
+#
+# The key is the name used on the command line:
+#   bash serve.sh <name>                     # start the vLLM server of an agent / reranker
+#   bash inference.sh --reranker <name>      # run DR Tulu with this reranker
+#
+#   model:     key in configs/models.yaml
+#   backend:   vllm  -> served by `bash serve.sh <name>` (one reranker on port 30003 at a time)
+#              hf    -> loaded in-process by the MCP server (GPU: inference.sh --hf-device)
+#              none  -> no model
+#   serve:     vLLM flags (port, served_model_name, max_model_len, dtype, extra_args) and
+#              api_path, the URL suffix the reranker client calls ("/v1" unless noted).
+#              Requests are sent to served_model_name, so a server started by hand
+#              must use the same --served-model-name and port.
+#   overrides: settings of workflows/auto_search_sft.yaml used for this reranker
+#
+# Setwise rerankers return the set they select; ranking rerankers keep the top
+# --topn (default 5) documents.
+# Prompts of the LLM rerankers are in configs/prompts/.
+# =============================================================================
+
+agents:
+  search_agent:                 # DR Tulu, workflows/auto_search_sft.yaml: search_agent_base_url
+    model: dr_tulu_8b
+    serve: {port: 30001, served_model_name: rl-research/DR-Tulu-8B, max_model_len: 40960, dtype: auto}
+  browse_agent:                 # reads browsed pages, browse_agent_base_url
+    model: qwen3_8b
+    serve: {port: 30002, served_model_name: Qwen/Qwen3-8B, max_model_len: 40960, dtype: auto}
+
+rerankers:
+  # Control: same search + browse pipeline, documents kept in search order.
+  no_rerank:
+    backend: none
+    overrides:
+      reranker_type: identity
+
+  bge_reranker_large:
+    model: bge_reranker_large
+    backend: vllm
+    serve: {port: 30003, served_model_name: bge-reranker-large, dtype: auto, extra_args: "--task score", api_path: ""}   # Cohere rerank API, no /v1
+    overrides:
+      reranker_type: pointwise_bge
+
+  monot5_3b:
+    model: monot5_3b
+    backend: hf
+    overrides:
+      reranker_type: pointwise_monot5
+
+  rankt5_3b:
+    model: rankt5_3b
+    backend: hf
+    overrides:
+      reranker_type: pointwise_rankt5
+
+  rankllama_7b:
+    model: rankllama_7b
+    base_model: llama2_7b       # the LoRA adapter is merged into this model
+    backend: hf
+    overrides:
+      reranker_type: pointwise_rankllama
+      reranker_hf_batch_size: 8
+      reranker_hf_max_length: 512
+
+  rankvicuna_7b:
+    model: rankvicuna_7b
+    backend: vllm
+    serve: {port: 30003, served_model_name: rankvicuna, max_model_len: 4096, dtype: bfloat16}
+    overrides:
+      reranker_type: listwise_rankvicuna
+      reranker_window_size: 20
+      reranker_step: 10
+      reranker_listwise_max_tokens: 200
+
+  rankzephyr_7b:
+    model: rankzephyr_7b
+    backend: vllm
+    serve: {port: 30003, served_model_name: rankzephyr, max_model_len: 4096, dtype: bfloat16}
+    overrides:
+      reranker_type: listwise_rankzephyr
+      reranker_window_size: 20
+      reranker_step: 10
+      reranker_listwise_max_tokens: 200
+
+  rearank_7b:
+    model: rearank_7b
+    backend: vllm
+    serve: {port: 30003, served_model_name: rearank, max_model_len: 32768, dtype: bfloat16}
+    overrides:
+      reranker_type: listwise_rearank
+      reranker_window_size: 20
+      reranker_step: 10
+      reranker_listwise_max_tokens: 2048
+      reranker_rearank_max_passage_chars: 400
+
+  reasonrank_7b:
+    model: reasonrank_7b
+    backend: vllm
+    serve: {port: 30003, served_model_name: reasonrank, max_model_len: 16384, dtype: bfloat16}
+    overrides:
+      reranker_type: listwise_reasonrank
+      reranker_window_size: 20
+      reranker_step: 10
+      reranker_reasonrank_max_tokens: 3172
+      reranker_reasonrank_doc_max_words: 100
+
+  rank4gen_8b:
+    model: rank4gen_8b
+    backend: vllm
+    serve: {port: 30003, served_model_name: Rank4Gen, max_model_len: 40960, dtype: bfloat16}
+    overrides:
+      reranker_type: setwise_rank4gen
+      reranker_listwise_max_tokens: 4096
+
+  setr_8b:
+    model: setr_8b
+    backend: vllm
+    serve: {port: 30003, served_model_name: SetR, max_model_len: 40960, dtype: bfloat16}
+    overrides:
+      reranker_type: setwise_setr
+      reranker_listwise_max_tokens: 4096
+
+  rubricranker_8b:
+    model: rubricranker_8b
+    backend: vllm
+    serve: {port: 30003, served_model_name: rubricranker, max_model_len: 40960, dtype: bfloat16}
+    overrides:
+      reranker_type: setwise_rubricranker
+
+  adatutorank_8b:
+    model: adatutorank_8b
+    backend: vllm
+    serve: {port: 30003, served_model_name: adatutorank, max_model_len: 40960, dtype: bfloat16}
+    overrides:
+      reranker_type: setwise_adatutorank
+      reranker_adatutorank_temperature: 0.0

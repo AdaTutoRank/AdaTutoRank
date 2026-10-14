@@ -1,0 +1,8 @@
+# BGE-Reranker-Large — cross-encoder
+#
+# The tokenizer receives (query_template, passage_template) as a text pair; the single
+# logit is the relevance score. No instruction text is added.
+# Placeholders: {query} question text, {text} passage text.
+
+query_template: "{query}"
+passage_template: "{text}"

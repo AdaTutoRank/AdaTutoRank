@@ -1,0 +1,153 @@
+# =============================================================================
+# Rerankers
+#
+# The key is the reranker name used everywhere: on the command line
+# (--reranker), as the output folder name, and in configs/weights.yaml.
+#
+#   display_name:  name used in the paper table
+#   method:        implementation (see METHODS in rankify/models/reranking.py)
+#   prompt:        prompt file under configs/prompts/
+#   set_selection: true  -> the model returns a variable-size subset; all selected
+#                           passages go to the generator
+#                  false -> the model returns a full ranking; the top-k (5) go to the generator
+#   params:        keyword arguments for the reranker class
+# =============================================================================
+
+bm25:
+  display_name: Initial Retrieval (BM25)
+  method: bm25                 # keeps the BM25 order from the input file, no model
+  set_selection: false
+
+bge-reranker-large:
+  display_name: BGE-Reranker-L
+  method: transformer_ranker
+  prompt: bge-reranker-large.yaml
+  set_selection: false
+  params:
+    batch_size: 16
+
+monot5-3b:
+  display_name: MonoT5 (3B)
+  method: monot5
+  prompt: monot5-3b.yaml
+  set_selection: false
+  params:
+    context_size: 512
+    batch_size: 32
+
+rankt5-3b:
+  display_name: RankT5 (3B)
+  method: rankt5
+  prompt: rankt5-3b.yaml
+  set_selection: false
+  params:
+    max_input_length: 512
+    batch_size: 10
+
+rankllama-7b:
+  display_name: RankLlama (7B)
+  method: rankllama
+  prompt: rankllama-7b.yaml
+  set_selection: false
+  params:
+    batch_size: 8
+    max_length: 512
+
+rankvicuna-7b:
+  display_name: RankVicuna (7B)
+  method: rankvicuna
+  prompt: rankvicuna-7b.yaml
+  set_selection: false
+  params:
+    context_size: 4096
+    window_size: 20
+    step_size: 10
+    vllm_batched: true
+    gpu_memory_utilization: 0.85
+
+rankzephyr-7b:
+  display_name: RankZephyr (7B)
+  method: rankzephyr
+  prompt: rankzephyr-7b.yaml
+  set_selection: false
+  params:
+    context_size: 4096
+    window_size: 20
+    step_size: 10
+    vllm_batched: true
+    gpu_memory_utilization: 0.85
+
+rearank-7b:
+  display_name: Rearank (7B)
+  method: rearank
+  prompt: rearank-7b.yaml
+  set_selection: false
+  params:
+    window_size: 20
+    step_size: 10
+    max_tokens: 2048
+    max_passage_length: 400    # characters
+    context_size: 32768
+    gpu_memory_utilization: 0.85
+
+reasonrank-7b:
+  display_name: ReasonRank (7B)
+  method: reasonrank
+  prompt: reasonrank-7b.yaml
+  set_selection: false
+  params:
+    window_size: 20
+    step_size: 10
+    max_passage_length: 100    # tokens
+    reasoning_max_tokens: 3172
+    context_size: 16384
+    gpu_memory_utilization: 0.85
+
+rank4gen-8b:
+  display_name: Rank4Gen (8B)
+  method: rank4gen
+  prompt: rank4gen-8b.yaml
+  set_selection: true
+  params:
+    top_k: 0                   # keep the whole selection
+    vllm_batched: true
+    gpu_memory_utilization: 0.85
+
+setr-8b:
+  display_name: SetR (8B)
+  method: setr
+  prompt: setr-8b.yaml
+  set_selection: true
+  params:
+    top_k: 0
+    max_passages: 50
+    context_size: 20480
+    gpu_memory_utilization: 0.85
+
+rubricranker-8b:
+  display_name: RubricRanker (8B)
+  method: rubricranker
+  prompt: rubricranker-8b.yaml
+  set_selection: true
+  params:
+    top_k: 0
+    max_passages: 50
+    max_doc_tokens: 300
+    max_tokens: 1024
+    temperature: 0.0
+    context_size: 16384
+    gpu_memory_utilization: 0.85
+
+adatutorank-8b:
+  display_name: AdaTutoRank (8B)
+  method: adatutorank
+  prompt: adatutorank-8b.yaml
+  set_selection: true
+  params:
+    top_k: 0
+    max_passages: 50
+    max_doc_tokens: 300
+    max_tokens: 1024
+    temperature: 0.0
+    context_size: 16384
+    gpu_memory_utilization: 0.85

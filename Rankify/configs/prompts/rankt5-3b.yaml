@@ -1,0 +1,8 @@
+# RankT5 (3B) — pointwise ranking with T5 trained on ranking losses
+#
+# Each (query, passage) pair is scored independently: score = logit of score_token_id
+# (<extra_id_10>) on the first decoded token. Input is padded/truncated to 512 tokens.
+# Placeholders: {query} question text, {text} passage text.
+
+input_template: "Query: {query} Document: {text}"
+score_token_id: 32089
